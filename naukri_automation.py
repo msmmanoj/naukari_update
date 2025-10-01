@@ -1,4 +1,8 @@
 import requests
+import urllib3
+
+# Disable SSL warnings when verify=False is used
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # --- API 1: Login to get token ---
 login_url = "https://www.naukri.com/central-login-services/v1/login"
@@ -17,12 +21,27 @@ login_headers = {
     "user-agent": "Mozilla/5.0"
 }
 
-login_response = requests.post(login_url, json=login_payload, headers=login_headers)
+login_response = requests.post(login_url, json=login_payload, headers=login_headers, verify=False)
 login_response.raise_for_status()
 login_data = login_response.json()
 
-access_token = login_data.get("accessToken") or login_data.get("token") or login_data.get("data", {}).get("accessToken")
+# Extract access token from cookies
+access_token = None
+if 'cookies' in login_data:
+    for cookie in login_data['cookies']:
+        if cookie['name'] == 'nauk_at':
+            access_token = cookie['value']
+            print(f"Found access token in cookies: {access_token[:50]}...")
+            break
+
+# Fallback: try to get token from JSON body
 if not access_token:
+    access_token = login_data.get("accessToken") or login_data.get("token") or login_data.get("data", {}).get("accessToken")
+    if access_token:
+        print(f"Found access token in JSON body: {access_token[:50]}...")
+
+if not access_token:
+    print("Login response structure:", login_data.keys())
     raise Exception("Could not find access token in response: " + str(login_data))
 
 # --- API 2: Use token to update profile ---
@@ -47,6 +66,12 @@ profile_headers = {
     "x-requested-with": "XMLHttpRequest"
 }
 
-profile_response = requests.post(profile_url, json=profile_json, headers=profile_headers)
+profile_response = requests.post(profile_url, json=profile_json, headers=profile_headers, verify=False)
 profile_response.raise_for_status()
 print("Profile update response:", profile_response.json())
+
+# Alternative approach using session (commented out):
+# import ssl
+# session = requests.Session()
+# session.verify = False  # or set to path of certificate bundle
+# # Then use: session.post() instead of requests.post()
