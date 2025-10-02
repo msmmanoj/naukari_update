@@ -1,15 +1,15 @@
-name: Naukri API Automation
+name: Selenium Naukri Automation
 
 on:
   schedule:
-    - cron: '0 */6 * * *'  # Every 6 hours UTC
+    - cron: '0 */6 * * *'  # Every 6 hours
   workflow_dispatch:
 
 jobs:
-  run-script:
+  run-selenium:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Set up Python
@@ -18,7 +18,15 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install requests
+        run: |
+          pip install selenium
+          # Install Chrome and chromedriver
+          sudo apt-get update
+          sudo apt-get install -y chromium-browser
+          wget -N https://chromedriver.storage.googleapis.com/$(curl -sS chromedriver.storage.googleapis.com/LATEST_RELEASE)/chromedriver_linux64.zip
+          unzip chromedriver_linux64.zip
+          sudo mv -f chromedriver /usr/local/bin/chromedriver
+          sudo chmod 0755 /usr/local/bin/chromedriver
 
-      - name: Run Naukri automation script
+      - name: Run Selenium script
         run: python naukri_automation.py
