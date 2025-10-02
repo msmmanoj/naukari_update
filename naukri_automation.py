@@ -1,77 +1,36 @@
-import requests
-import urllib3
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.chrome.options import Options
+import os
+import time
 
-# Disable SSL warnings when verify=False is used
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+# Read credentials from environment variables (for GitHub Actions secrets)
+USERNAME = 'malepatimanoj6@gmail.com'
+PASSWORD = 'Mtrgsm@123'
 
-# --- API 1: Login to get token ---
-login_url = "https://www.naukri.com/central-login-services/v1/login"
-login_payload = {
-    "username": "malepatimanoj6@gmail.com",
-    "password": "Mtrgsm@123"
-}
-login_headers = {
-    "accept": "application/json",
-    "appid": "103",
-    "clientid": "d3skt0p",
-    "content-type": "application/json",
-    "origin": "https://www.naukri.com",
-    "referer": "https://www.naukri.com/",
-    "systemid": "jobseeker",
-    "user-agent": "Mozilla/5.0"
-}
+chrome_options = Options()
+chrome_options.add_argument("--headless")  # Run headless for CI/CD
+chrome_options.add_argument("--no-sandbox")
+chrome_options.add_argument("--disable-dev-shm-usage")
 
-login_response = requests.post(login_url, json=login_payload, headers=login_headers, verify=False)
-login_response.raise_for_status()
-login_data = login_response.json()
+driver = webdriver.Chrome(options=chrome_options)
 
-# Extract access token from cookies
-access_token = None
-if 'cookies' in login_data:
-    for cookie in login_data['cookies']:
-        if cookie['name'] == 'nauk_at':
-            access_token = cookie['value']
-            print(f"Found access token in cookies: {access_token[:50]}...")
-            break
+try:
+    driver.get("https://www.naukri.com/nlogin/login")
+    time.sleep(3)  # Let page load
 
-# Fallback: try to get token from JSON body
-if not access_token:
-    access_token = login_data.get("accessToken") or login_data.get("token") or login_data.get("data", {}).get("accessToken")
-    if access_token:
-        print(f"Found access token in JSON body: {access_token[:50]}...")
+    # Find username and password fields and submit
+    driver.find_element(By.ID, "usernameField").send_keys(USERNAME)
+    driver.find_element(By.ID, "passwordField").send_keys(PASSWORD)
+    driver.find_element(By.XPATH, "//button[@type='submit']").click()
 
-if not access_token:
-    print("Login response structure:", login_data.keys())
-    raise Exception("Could not find access token in response: " + str(login_data))
+    time.sleep(5)  # Wait for login to complete, adjust as needed
 
-# --- API 2: Use token to update profile ---
-profile_url = "https://www.naukri.com/cloudgateway-mynaukri/resman-aggregator-services/v1/users/self/fullprofiles"
-profile_json = {
-    "profile": {
-        "resumeHeadline": "Advanced Software Engineer with expertise in Software Development,Software Design,Software Debugging,Software Deployment,Application Development,Web Development,Web Application,Design Patterns,Code Development,Fullstack Development,System Design,SDLC"
-    },
-    "profileId": "b0592d9202756c4246da4e1993a01d02be70713db7750e82fcc93b141dd0abb8"
-}
-profile_headers = {
-    "accept": "application/json",
-    "appid": "105",
-    "authorization": f"Bearer {access_token}",
-    "clientid": "d3skt0p",
-    "content-type": "application/json",
-    "origin": "https://www.naukri.com",
-    "referer": "https://www.naukri.com/mnjuser/profile?id=&altresid&action=modalOpen",
-    "systemid": "Naukri",
-    "user-agent": "Mozilla/5.0",
-    "x-http-method-override": "PUT",
-    "x-requested-with": "XMLHttpRequest"
-}
+    # Optionally, navigate to profile and update
+    # Example: driver.get("https://www.naukri.com/mnjuser/profile")
+    # Do further actions...
 
-profile_response = requests.post(profile_url, json=profile_json, headers=profile_headers, verify=False)
-profile_response.raise_for_status()
-print("Profile update response:", profile_response.json())
-
-# Alternative approach using session (commented out):
-# import ssl
-# session = requests.Session()
-# session.verify = False  # or set to path of certificate bundle
-# # Then use: session.post() instead of requests.post()
+    print("Login completed successfully!")
+finally:
+    driver.quit()
