@@ -1,8 +1,8 @@
-name: Selenium Naukri Automation
+name: Naukri Selenium Automation
 
 on:
   schedule:
-    - cron: '0 */6 * * *'  # Every 6 hours
+    - cron: '0 */6 * * *'  # Runs every 6 hours UTC
   workflow_dispatch:
 
 jobs:
@@ -12,21 +12,34 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Install Google Chrome
+        run: |
+          wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+          sudo dpkg -i google-chrome-stable_current_amd64.deb || sudo apt-get -f install -y
+
+      - name: Get Chrome version
+        id: get_chrome_version
+        run: |
+          CHROME_VERSION=$(google-chrome --version | awk '{print $3}')
+          CHROME_MAJOR=$(echo $CHROME_VERSION | cut -d '.' -f 1)
+          echo "CHROME_VERSION=$CHROME_VERSION" >> $GITHUB_ENV
+          echo "CHROME_MAJOR=$CHROME_MAJOR" >> $GITHUB_ENV
+
+      - name: Install matching ChromeDriver
+        run: |
+          CHROME_DRIVER_VERSION=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json" | jq -r ".channels.Stable.version")
+          wget -O /tmp/chromedriver.zip "https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/$CHROME_DRIVER_VERSION/linux64/chromedriver-linux64.zip"
+          unzip /tmp/chromedriver.zip -d /tmp/
+          sudo mv /tmp/chromedriver-linux64/chromedriver /usr/local/bin/chromedriver
+          sudo chmod +x /usr/local/bin/chromedriver
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install dependencies
-        run: |
-          pip install selenium
-          # Install Chrome and chromedriver
-          sudo apt-get update
-          sudo apt-get install -y chromium-browser
-          wget -N https://chromedriver.storage.googleapis.com/$(curl -sS chromedriver.storage.googleapis.com/LATEST_RELEASE)/chromedriver_linux64.zip
-          unzip chromedriver_linux64.zip
-          sudo mv -f chromedriver /usr/local/bin/chromedriver
-          sudo chmod 0755 /usr/local/bin/chromedriver
+      - name: Install Python dependencies
+        run: pip install selenium
 
       - name: Run Selenium script
         run: python naukri_automation.py
