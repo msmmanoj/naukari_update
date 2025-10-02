@@ -27,6 +27,8 @@ jobs:
 
       - name: Install matching ChromeDriver
         run: |
+          sudo apt-get update
+          sudo apt-get install -y jq unzip
           CHROME_DRIVER_VERSION=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json" | jq -r ".channels.Stable.version")
           wget -O /tmp/chromedriver.zip "https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/$CHROME_DRIVER_VERSION/linux64/chromedriver-linux64.zip"
           unzip /tmp/chromedriver.zip -d /tmp/
@@ -43,3 +45,12 @@ jobs:
 
       - name: Run Selenium script
         run: python naukri_automation.py
+
+      - name: Upload error debug files if any
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: selenium-debug-files
+          path: |
+            error.png
+            page_source.html
